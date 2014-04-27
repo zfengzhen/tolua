@@ -427,14 +427,17 @@ TOLUA_API int class_gc_event (lua_State* L)
 	lua_pushstring(L,"tolua_gc");
 	lua_rawget(L,LUA_REGISTRYINDEX);
 	*/
+    /*-- cclosure : tolua_gc tolua_super --*/
 	lua_pushvalue(L, lua_upvalueindex(1));
 	lua_pushlightuserdata(L,u);
-	lua_rawget(L,-2);            /* stack: gc umt    */
-	lua_getmetatable(L,1);       /* stack: gc umt mt */
+	lua_rawget(L,-2);            /* stack: gc umt(gc[u])    */
+	lua_getmetatable(L,1);       /* stack: gc umt(gc[u]) mt */
 	/*fprintf(stderr, "checking type\n");*/
 	top = lua_gettop(L);
+    /*-- 判断umt(gc[u]) 是不是mt 的子类 --*/
 	if (tolua_fast_isa(L,top,top-1, lua_upvalueindex(2))) /* make sure we collect correct type */
 	{
+        /*-- 如果只注册了父类部分, 析构时只会析构父类的部分 --*/
 		/*fprintf(stderr, "Found type!\n");*/
 		/* get gc function */
 		lua_pushliteral(L,".collector");

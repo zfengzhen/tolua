@@ -123,13 +123,14 @@ static void set_ubox(lua_State* L) {
 static void mapinheritance (lua_State* L, const char* name, const char* base)
 {
 	/* set metatable inheritance */
-	luaL_getmetatable(L,name);
+	luaL_getmetatable(L,name);  /*-- stack: mt of name --*/
 
 	if (base && *base)
-		luaL_getmetatable(L,base);
+		luaL_getmetatable(L,base); /*-- stack: mt of name , mt of base --*/
 	else {
 
 		if (lua_getmetatable(L, -1)) { /* already has a mt, we don't overwrite it */
+            /*-- 如果mt of name已经有metatable了, 则退出 --*/
 			lua_pop(L, 2);
 			return;
 		};
@@ -220,6 +221,7 @@ static int tolua_bnd_cast (lua_State* L)
         return 1;
 */
 
+    /*-- tolua.cast(object, "ClassXXX") -- */
 	void* v;
 	const char* s;
 	if (lua_islightuserdata(L, 1)) {
@@ -257,7 +259,7 @@ static int tolua_bnd_setpeer(lua_State* L) {
 		lua_pushstring(L, "Invalid argument #1 to setpeer: userdata expected.");
 		lua_error(L);
 	};
-	
+
 	if (lua_isnil(L, -1)) {
 
 		lua_pop(L, 1);
@@ -370,15 +372,15 @@ TOLUA_API int tolua_register_gc (lua_State* L, int lo)
  int success = 1;
  void *value = *(void **)lua_touserdata(L,lo);
  lua_pushstring(L,"tolua_gc");
- lua_rawget(L,LUA_REGISTRYINDEX);
-	lua_pushlightuserdata(L,value);
+ lua_rawget(L,LUA_REGISTRYINDEX); /*-- gc --*/
+	lua_pushlightuserdata(L,value); /*-- gc C++指针 --*/
 	lua_rawget(L,-2);
 	if (!lua_isnil(L,-1)) /* make sure that object is not already owned */
 		success = 0;
 	else
 	{
-		lua_pushlightuserdata(L,value);
-		lua_getmetatable(L,lo);
+	    lua_pushlightuserdata(L,value); /*-- gc nil C++指针 --*/
+		lua_getmetatable(L,lo); /*-- gc nil C++指针 具体类型的metatable --*/
 		lua_rawset(L,-4);
 	}
 	lua_pop(L,2);
@@ -532,7 +534,7 @@ TOLUA_API void tolua_cclass (lua_State* L, const char* lname, const char* name, 
 	mapsuper(L,name,base);
 
 	lua_pushstring(L,lname);
-	
+
 	push_collector(L, name, col);
 	/*
 	luaL_getmetatable(L,name);
@@ -541,7 +543,7 @@ TOLUA_API void tolua_cclass (lua_State* L, const char* lname, const char* name, 
 
 	lua_rawset(L,-3);
 	*/
-	
+
 	luaL_getmetatable(L,name);
 	lua_rawset(L,-3);              /* assign class metatable to module */
 
@@ -555,7 +557,7 @@ TOLUA_API void tolua_cclass (lua_State* L, const char* lname, const char* name, 
 	lua_rawset(L,-3);
 	lua_pop(L,1);
 	*/
-	
+
 
 }
 
@@ -666,7 +668,7 @@ static int const_array (lua_State* L)
 TOLUA_API void tolua_array (lua_State* L, const char* name, lua_CFunction get, lua_CFunction set)
 {
 	lua_pushstring(L,".get");
-	lua_rawget(L,-2);
+	lua_rawget(L,-2); /*-- .get_tb --*/
 	if (!lua_istable(L,-1))
 	{
 		/* create .get table, leaving it at the top */
@@ -676,17 +678,17 @@ TOLUA_API void tolua_array (lua_State* L, const char* name, lua_CFunction get, l
 		lua_pushvalue(L,-2);
 		lua_rawset(L,-4);
 	}
-	lua_pushstring(L,name);
+	lua_pushstring(L,name); /*-- .get_tb name --*/
 
- lua_newtable(L);           /* create array metatable */
- lua_pushvalue(L,-1);
-	lua_setmetatable(L,-2);    /* set the own table as metatable (for modules) */
- lua_pushstring(L,"__index");
+ lua_newtable(L);           /*-- .get_tb name new_tb --*/ /* create array metatable */
+ lua_pushvalue(L,-1); /*-- .get_tb name new_tb new_tb--*/
+	lua_setmetatable(L,-2);    /*-- .get_tb name new_tb(has mt 自己为自己的mt) --*/ /* set the own table as metatable (for modules) */
+ lua_pushstring(L,"__index");  /*-- .get_tb name new_tb(has mt) __index --*/
  lua_pushcfunction(L,get);
-	lua_rawset(L,-3);
+	lua_rawset(L,-3);          /*-- .get_tb name new_tb(has mt & has __index) --*/
  lua_pushstring(L,"__newindex");
  lua_pushcfunction(L,set?set:const_array);
-	lua_rawset(L,-3);
+	lua_rawset(L,-3);          /*-- .get_tb name new_tb(has mt & has __index & has __newindex) --*/
 
  lua_rawset(L,-3);                  /* store variable */
 	lua_pop(L,1);                      /* pop .get table */
